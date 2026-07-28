@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+    // Public product catalog - anyone can read, only admins can write.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public category list.
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Global settings (CMP / GST) - publicly readable so prices render for
+    // everyone, only admins can update.
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Enquiries/orders - anyone can create (customer checkout / contact form),
+    // only admins can read the full list or update status.
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Admin registry - never client-writable. Add admin UIDs manually via the
+    // Firebase Console or Admin SDK, never from the app itself.
+    match /admin/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}
